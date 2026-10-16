@@ -1,33 +1,30 @@
-
-
 // knihovny
 
 // definování hlavní funkce
 
+    // nastvení parametrů difuze rozměrů, růst,
 
-// nastvení parametrů difuze rozměrů, růst,
+        // definice parametrů -> fce pro parametry korálu
 
-    // definice parametrů -> fce pro parametry korálu
+        // definice hranice růstu
 
-    // definice hranice růstu
+        // definice aktualni struktury koralu
 
-    // definice aktualni struktury koralu
+    // inicializace - siť, živiny, počáteční korál
 
-// inicializace - siť, živiny, počáteční korál
+        // definice site a velikosti pole
 
-    // definice site a velikosti pole
+        // definice okrajových podmínek a počátečních
 
-    // definice okrajových podmínek a počátečních
+    // hlavní výpočetní cyklus - difuze, růst, aktualizace
 
-// hlavní výpočetní cyklus - difuze, růst, aktualizace
+        //numerické reseni difuze (dc/dt=D*Laplace(c)) -> kontrola stability numerickeho vypoctu
 
-    //numerické reseni difuze (dc/dt=D*Laplace(c)) -> kontrola stability numerickeho vypoctu
+        //urceni poctu cyklu
 
-    //urceni poctu cyklu
+        //vypocet pravdepodobnosti rustu
 
-    //vypocet pravdepodobnosti rustu
-
-    //vypocet nasledujici podoby dle rustu
+        //vypocet nasledujici podoby dle rustu
 
 // vizualizace - zobrazení aktuálního stavu
 
