@@ -1,8 +1,9 @@
 /*
 source venv/bin/activate
 g++ -O3 -std=c++20 brain_coral.cpp -o brain_coral
+./brain_coral
+./brain_coral 0.2 0.2 0.2 0.2
 */
-
 /*
 pouzite knihovny potrebne pro vypocet a vizualizaci
 */
@@ -25,13 +26,18 @@ struct Params
 {
     int N = 300;  //nastaveni rozmeru ctvercove site
 
-    int steps = 12000; //pocet kroku simulace
-    int frames = 120;  //pocet snimku pro animaci
+    int steps = 24000; //pocet kroku simulace
+    int frames = 240;  //pocet snimku pro animaci
 
-    double F = 0.030;  //tzv. feed rate, predstavuje prisun latky U do systemu, vetsi cislo = agresivnejsi rust
-    double k = 0.055;  //tzv. kill rate, predstavuje miru zaniku latky V, male cislo = vice aktivni latky
+    //Gray-Scottovy parametry
+    //double F = 0.030;  //tzv. feed rate, predstavuje prisun latky U do systemu, vetsi cislo = agresivnejsi rust
+    //double k = 0.055;  //tzv. kill rate, predstavuje miru zaniku latky V, male cislo = vice aktivni latky
 
-    double dt = 1.0;   //delka casoveho kroku
+    //Schnakenbergovy parametry
+    double a = 0.10;
+    double b = 0.20;
+
+    double dt = 0.5;   //delka casoveho kroku
 
     double D1 = 0.18;  //D1 az D4 predstavuji postupne difuzivitu ve vsech rozich site, jedna se o primarni nastaveni pro spusteni 
     double D2 = 0.12;
@@ -56,6 +62,29 @@ private:
     {
         return y*p.N+x;
     }
+
+    //radiální difuzivita
+//    double localDu(int x,int y) const
+//{
+//    double cx = 0.5*(p.N-1);
+//    double cy = 0.5*(p.N-1);
+
+//    double dx = x-cx;
+//    double dy = y-cy;
+
+//   double r =
+//        sqrt(dx*dx+dy*dy);
+
+//    double rmax =
+//        sqrt(2.0)*0.5*(p.N-1);
+
+//    double q = r/rmax;
+
+//    return
+//        0.04 +
+//        (0.18-0.04)*q;
+//}
+
 
     double localDu(int x,int y) const   //resi lokalni difuzivitu
     {
@@ -99,17 +128,44 @@ public:
         std::uniform_real_distribution<double>
         noise(-0.01,0.01);      //generace sumu v intervalu viz cisla, slouzi k naruseni pocatecni podminky -> ziskavame nesymetricke reseni
 
-        for(int y=c-15;y<=c+15;y++)     //prochazka stredovou oblasti pro naruseni (generaci) prostredi = vytvoreni bodove poruchy pro inicializaci
-        {
-            for(int x=c-15;x<=c+15;x++)
-            {
-                int i=idx(x,y);         //prevod souradnic (x,y) na index
+        //generovani kruhove poruchy
+        int r = 45;
 
-                U[i]=0.5+noise(rng);    //vlastni pocatecni podminka pro U
-                V[i]=0.25+noise(rng);   //vlastni pocatecni podminka pro V
+        for(int y=c-r;y<=c+r;y++)
+        {
+            for(int x=c-r;x<=c+r;x++)
+            {
+                int dx = x-c;
+                int dy = y-c;
+
+                if(dx*dx + dy*dy <= r*r)
+                    {
+                        int i = idx(x,y);
+
+                        U[i]=0.3+noise(rng);
+                        V[i]=2.22+noise(rng);
+                    }
             }
         }
     }
+
+        //generovani ctvercove poruchy
+      //  for(int y=c-15;y<=c+15;y++)     //prochazka stredovou oblasti pro naruseni (generaci) prostredi = vytvoreni bodove poruchy pro inicializaci
+      //  {
+      //      for(int x=c-15;x<=c+15;x++)
+      //      {
+      //          int i=idx(x,y);         //prevod souradnic (x,y) na index
+//
+      //          //pro Gray-Scotta
+      //         // U[i]=0.5+noise(rng);    //vlastni pocatecni podminka pro U
+      //         // V[i]=0.25+noise(rng);   //vlastni pocatecni podminka pro V
+//
+      //         //pro Schnakenberga
+      //         U[i]=1.0+noise(rng);
+      //         V[i]=0.9+noise(rng);
+      //      }
+      //  }
+ //   }
 
 /*
 ukladani vysledku (vizualizace)
@@ -147,51 +203,164 @@ Laplaceuv operator, reakcni clen, Euleruv krok, nove hodnoty Un a Vn
 
     void step()
     {
-        for(int y=1;y<p.N-1;y++)        //postupny pruchod vnitrnimi body site NxN, neaktualizuje hranicni body
+        //for(int y=1;y<p.N-1;y++)        //postupny pruchod vnitrnimi body site NxN, neaktualizuje hranicni body
+        //{
+            //for(int x=1;x<p.N-1;x++)
+
+        double cx = 0.5*(p.N-1);
+        double cy = 0.5*(p.N-1);
+
+        double R = 0.40*p.N;
+
+        for(int y=0;y<p.N;y++)
         {
-            for(int x=1;x<p.N-1;x++)
+            for(int x=0;x<p.N;x++)
+
             {
                 int i=idx(x,y);
 
                 double u=U[i];  //nacteni koncentrace latky U v bode
                 double v=V[i];  //nacteni koncentrace latky V v bode
 
-                double Lu=      //Laplaceuv operator pro U, je diskretni, modeluje difuzi
-                    U[idx(x-1,y)]
-                  + U[idx(x+1,y)]
-                  + U[idx(x,y-1)]
-                  + U[idx(x,y+1)]
-                  -4.0*u;
+                //double Lu=      //Laplaceuv operator pro U, je diskretni, modeluje difuzi
+                 //   U[idx(x-1,y)]
+                 // + U[idx(x+1,y)]
+                 // + U[idx(x,y-1)]
+                 // + U[idx(x,y+1)]
+                 // -4.0*u;
 
-                double Lv=      //Laplaceuv operator pro V, je diskretni, modeluje difuzi
-                    V[idx(x-1,y)]
-                  + V[idx(x+1,y)]
-                  + V[idx(x,y-1)]
-                  + V[idx(x,y+1)]
-                  -4.0*v;
+                  //Schakenberg - torus
+                    int xm=(x-1+p.N)%p.N;
+                    int xp=(x+1)%p.N;
+                    int ym=(y-1+p.N)%p.N;
+                    int yp=(y+1)%p.N;
 
-                double uvv=u*v*v;   //reakcni nelinearni difuzni clen, vytvari vzory
+                    double Lu=
+                      U[idx(xm,y)]
+                    + U[idx(xp,y)]
+                    + U[idx(x,ym)]
+                    + U[idx(x,yp)]
+                    - 4.0*u;
 
-                double Du=localDu(x,y); //nacteni lokalni difuzivity U v bode
-                double Dv=0.5*Du;   //urceni difuzivity latky V, zde pro nasi realizaci je pro jednoduchost Dv vzato jako polovina Du (mozno zmenit)
+               // double Lv=      //Laplaceuv operator pro V, je diskretni, modeluje difuzi
+               //     V[idx(x-1,y)]
+               //   + V[idx(x+1,y)]
+               //   + V[idx(x,y-1)]
+               //   + V[idx(x,y+1)]
+               //   -4.0*v;
 
-                Un[i]=std::clamp(      //Euleruv krok reseni, clamp omezuje hodnoty na interval <0,1>
-                    u+p.dt*(
-                    Du*Lu
-                    -uvv
-                    +p.F*(1-u)),
-                    0.0,
-                    1.0
-                );
+                  double Lv=
+                      V[idx(xm,y)]
+                    + V[idx(xp,y)]
+                    + V[idx(x,ym)]
+                    + V[idx(x,yp)]
+                    - 4.0*v;
 
-                Vn[i]=std::clamp(      //Euleruv krok reseni, clamp omezuje hodnoty na interval <0,1>
-                    v+p.dt*(
-                    Dv*Lv
-                    +uvv
-                    -(p.F+p.k)*v),
-                    0.0,
-                    1.0
-                );
+                  //Gray-Scott
+                //double uvv=u*v*v;   //reakcni nelinearni difuzni clen, vytvari vzory
+
+
+
+                  //  if(x==0 && y==0)
+                  //      {
+                  //          std::cout
+                //         << "nutrient edge = "
+                 //           << nutrient
+                   //         << "\n";
+                    //    }
+
+                   // if(x==p.N/2 && y==p.N/2)
+                   //     {
+                   //         std::cout
+                   //         << "nutrient center = "
+                   //         << nutrient
+                   //         << "\n";
+                   //     }
+                //Schakenberg
+                double reaction =u*u*v;
+
+                if(!std::isfinite(reaction))
+                    {
+                        std::cout
+                            << "reaction exploded\n"
+                            << "u = " << u << "\n"
+                            << "v = " << v << "\n";
+                    
+                        std::exit(1);
+                    }
+
+                double dx = x-cx;
+                double dy = y-cy;
+
+                double nutrient =
+                    std::exp(
+                        -(dx*dx + dy*dy)/(R*R)
+                    );
+                double Du=localDu(x,y)*nutrient; //nacteni lokalni difuzivity U v bode
+               
+
+                //pro Shakenberga
+                double Dv = Du;
+
+               //pro Gray-Scotta
+               // double Dv=0.5*Du;   //urceni difuzivity latky V, zde pro nasi realizaci je pro jednoduchost Dv vzato jako polovina Du (mozno zmenit)
+
+                //Euler pro Gray-Scotta
+               // Un[i]=std::clamp(      //Euleruv krok reseni, clamp omezuje hodnoty na interval <0,1>
+               //     u+p.dt*(
+               //     Du*Lu
+               //     -uvv
+               //     +p.F*(1-u)),
+               //     0.0,
+               //     1.0
+               // );
+
+            
+               //Euler pro Schnakenberga
+
+                    Un[i]=
+                        u+p.dt*(
+                            Du*Lu
+                            +p.a
+                            -u
+                            +reaction
+                        
+                        
+                        
+                        );
+
+
+                //Euler pro Shakenberga
+                    Vn[i]=
+                        v+p.dt*(
+                            Dv*Lv
+                            +p.b
+                            -reaction
+                        
+                        
+                        );
+
+                        if(!std::isfinite(Un[i]) || !std::isfinite(Vn[i]))
+                            {
+                                 std::cout
+                                  << "solution exploded\n"
+                                     << "u = " << u << "\n"
+                                      << "v = " << v << "\n"
+                                    << "reaction = " << reaction << "\n";
+
+                                    std::exit(1);
+                            }
+
+
+                //Euler pro Gray-Scotta
+                //Vn[i]=std::clamp(      //Euleruv krok reseni, clamp omezuje hodnoty na interval <0,1>
+                //    v+p.dt*(
+                //    Dv*Lv
+                //    +uvv
+                //    -(p.F+p.k)*v),
+                //    0.0,
+                //    1.0
+                //);
             }
         }
 
@@ -258,11 +427,34 @@ for f in files:
         dtype=np.float64
     ).reshape(N,N)
 
-    # zesílení reliéfu
-    arr = arr * 10.0
+    if f == files[-1]:
+
+        print("\nLast frame statistics:")
+
+        print("min  =", np.min(arr))
+        print("max  =", np.max(arr))
+        print("mean =", np.mean(arr))
+
+        print("p50  =", np.percentile(arr,50))
+        print("p90  =", np.percentile(arr,90))
+        print("p99  =", np.percentile(arr,99))
+
+  
+
+    threshold = np.percentile(arr,25)
+
+    mask = arr > threshold
+
+    display = np.zeros_like(arr)
+
+    display[arr > threshold] = arr[arr > threshold]
+
+    arr = (arr - np.min(arr)) / (
+        np.max(arr) - np.min(arr)
+        )
 
     rgb = light.shade(
-        arr,
+        display,
         cmap=coral,
         vert_exag=25,
         blend_mode='soft'
@@ -278,7 +470,7 @@ for f in files:
 ani = animation.ArtistAnimation(
     fig,
     frames,
-    interval=80,
+    interval=240,
     blit=True
 )
 
@@ -341,6 +533,31 @@ void fce pro rizeni celeho kodu, postupne projde numericke reseni a pote na jeho
 
                 ++frame;
             }
+
+            if(t % 100 == 0)
+        {
+            auto [umin, umax] =
+                std::minmax_element(
+                U.begin(),
+                U.end());
+
+            auto [vmin, vmax] =
+                std::minmax_element(
+                V.begin(),
+                V.end());
+
+        std::cout
+            << t
+            << " U:["
+            << *umin
+            << ", "
+            << *umax
+            << "] V:["
+            << *vmin
+            << ", "
+            << *vmax
+            << "]\n";
+        }
         }
 
         std::cout
@@ -352,6 +569,8 @@ void fce pro rizeni celeho kodu, postupne projde numericke reseni a pote na jeho
         int status =
             std::system("python3 visualize.py");    //spusteni python3 z prostredi C++
     }
+
+    
 };
 
 int main(int argc,char* argv[])
